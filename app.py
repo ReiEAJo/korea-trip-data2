@@ -104,6 +104,29 @@ AREA_CODES = {
 # 역방향 매핑 (코드 -> 시도명)
 CODE_TO_AREA = {v: k for k, v in AREA_CODES.items()}
 
+# 대한민국 행정구역 GeoJSON 데이터 로드 함수 (속도 개선 및 오프라인 보완을 위해 로컬 파일 캐싱 적용)
+@st.cache_data(show_spinner=False)
+def load_korea_geojson():
+    import os
+    import json
+    local_path = "skorea_provinces_geo.json"
+    if os.path.exists(local_path):
+        try:
+            with open(local_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+            
+    url = "https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2013/json/skorea_provinces_geo.json"
+    try:
+        r = requests.get(url, timeout=10)
+        data = r.json()
+        with open(local_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        return data
+    except Exception:
+        return None
+
 # ==========================================
 # 1. API 데이터 수집 함수 (사용자 코드 활용 및 보완)
 # ==========================================
@@ -644,15 +667,15 @@ with tab_trends:
         selected_timeframe_name = st.selectbox("분석 대상 기간 선택", list(timeframe_options.keys()), index=0)
         target_timeframe = timeframe_options[selected_timeframe_name]
         
-    # 서울, 부산을 제외한 15개 한국 시도 단위 행정구역 영문명 정의
+    # 서울, 부산, 제주를 제외한 14개 한국 시도 단위 행정구역 영문명 정의
     all_cities = [
         "Daegu", "Incheon", "Gwangju", "Daejeon", "Ulsan", "Sejong", "Gyeonggi", 
         "Gangwon", "Chungbuk", "Chungnam", "Jeonbuk", "Jeonnam", "Gyeongbuk", 
-        "Gyeongnam", "Jeju"
+        "Gyeongnam"
     ]
     
-    # 5대 기준 앵커 도시 설정 (서울, 부산 제외하고 구축)
-    anchor_keywords = ["Jeju", "Incheon", "Gangwon", "Daegu", "Gyeonggi"]
+    # 5대 기준 앵커 도시 설정 (서울, 부산, 제주 제외하고 구축)
+    anchor_keywords = ["Incheon", "Gangwon", "Daegu", "Gyeonggi", "Chungnam"]
     
     with st.spinner("📊 구글 트렌드 전체 도시 선호도 순위 분석 중..."):
         df_trends, is_mock = fetch_google_trends(anchor_keywords, target_country=target_country, timeframe=target_timeframe)
@@ -660,31 +683,31 @@ with tab_trends:
     if df_trends is not None and not df_trends.empty:
         # 기준 도시 평균 검색 관심도 추출
         anchor_means = df_trends.mean().to_dict()
-        jeju_val = anchor_means.get("Jeju", 32.0)
         incheon_val = anchor_means.get("Incheon", 12.0)
         gangwon_val = anchor_means.get("Gangwon", 9.0)
         daegu_val = anchor_means.get("Daegu", 8.0)
         gyeonggi_val = anchor_means.get("Gyeonggi", 15.0)
+        chungnam_val = anchor_means.get("Chungnam", 7.0)
         
-        # Jeju를 기준(1.0)으로 삼은 15개 도시의 가중치 멀티플라이어 정의
+        # Incheon을 기준으로 환산하기 위한 국가별 가중치 맵 (Jeju 제외)
         country_weights = {
             "US": {
-                "Jeju": 1.0, "Incheon": 0.40, "Gangwon": 0.26, "Gyeonggi": 0.33, "Daegu": 0.15,
+                "Incheon": 0.40, "Gangwon": 0.26, "Gyeonggi": 0.33, "Daegu": 0.15,
                 "Gyeongbuk": 0.31, "Jeonnam": 0.17, "Chungnam": 0.13, "Gyeongnam": 0.11, "Jeonbuk": 0.11,
                 "Daejeon": 0.09, "Gwangju": 0.09, "Ulsan": 0.06, "Chungbuk": 0.06, "Sejong": 0.04
             },
             "JP": {
-                "Jeju": 1.0, "Daegu": 0.65, "Incheon": 0.53, "Gyeonggi": 0.42, "Gangwon": 0.28,
+                "Daegu": 0.65, "Incheon": 0.53, "Gyeonggi": 0.42, "Gangwon": 0.28,
                 "Gyeongnam": 0.21, "Gyeongbuk": 0.18, "Daejeon": 0.14, "Jeonbuk": 0.11, "Chungnam": 0.11,
                 "Gwangju": 0.11, "Jeonnam": 0.07, "Ulsan": 0.07, "Chungbuk": 0.07, "Sejong": 0.03
             },
             "TW": {
-                "Jeju": 1.0, "Daegu": 1.18, "Gyeonggi": 0.56, "Incheon": 0.43, "Gangwon": 0.37,
+                "Daegu": 1.18, "Gyeonggi": 0.56, "Incheon": 0.43, "Gangwon": 0.37,
                 "Gyeongnam": 0.25, "Jeonnam": 0.15, "Gyeongbuk": 0.15, "Jeonbuk": 0.12, "Chungnam": 0.09,
                 "Daejeon": 0.09, "Gwangju": 0.09, "Ulsan": 0.06, "Chungbuk": 0.06, "Sejong": 0.03
             },
             "TH": {
-                "Jeju": 1.0, "Gangwon": 1.71, "Gyeonggi": 1.25, "Incheon": 0.53, "Daegu": 0.18,
+                "Gangwon": 1.71, "Gyeonggi": 1.25, "Incheon": 0.53, "Daegu": 0.18,
                 "Gyeongbuk": 0.21, "Gyeongnam": 0.18, "Jeonnam": 0.14, "Chungnam": 0.11, "Daejeon": 0.11,
                 "Jeonbuk": 0.07, "Gwangju": 0.07, "Ulsan": 0.07, "Chungbuk": 0.04, "Sejong": 0.04
             }
@@ -692,20 +715,20 @@ with tab_trends:
         
         # 정의되지 않은 국가는 전세계(Global) 기본 가중치 사용
         default_weights = {
-            "Jeju": 1.0, "Incheon": 0.38, "Gangwon": 0.33, "Gyeonggi": 0.42, "Daegu": 0.19,
+            "Incheon": 0.38, "Gangwon": 0.33, "Gyeonggi": 0.42, "Daegu": 0.19,
             "Gyeongbuk": 0.21, "Jeonnam": 0.14, "Chungnam": 0.12, "Gyeongnam": 0.12, "Jeonbuk": 0.09,
             "Daejeon": 0.09, "Gwangju": 0.07, "Ulsan": 0.07, "Chungbuk": 0.05, "Sejong": 0.02
         }
         
         weights = country_weights.get(target_country, default_weights)
+        incheon_weight = weights.get("Incheon", 0.38)
+        standard_val = incheon_val / incheon_weight if incheon_weight > 0 else incheon_val
         
-        # 15개 모든 도시의 관심도 계산
+        # 14개 모든 도시의 관심도 계산
         rank_records = []
         for city in all_cities:
             # 앵커 도시들은 실시간 추출 값을 우선 적용
-            if city == "Jeju":
-                score = jeju_val
-            elif city == "Incheon":
+            if city == "Incheon":
                 score = incheon_val
             elif city == "Gangwon":
                 score = gangwon_val
@@ -713,9 +736,11 @@ with tab_trends:
                 score = daegu_val
             elif city == "Gyeonggi":
                 score = gyeonggi_val
+            elif city == "Chungnam":
+                score = chungnam_val
             else:
-                # 비-앵커 도시들은 제주 관심도 값을 기준으로 가중치 비율 환산 산출
-                score = jeju_val * weights.get(city, 0.05)
+                # 비-앵커 도시들은 환산된 기준 스케일값에 가중치 비율을 곱해 산출
+                score = standard_val * weights.get(city, 0.05)
                 
             rank_records.append({
                 "도시명": city,
@@ -729,11 +754,11 @@ with tab_trends:
         # 최종 시각화와 출력을 위해 상위 Top 5로 슬라이싱하여 할당
         rank_data = rank_data.head(5).copy()
         
-        # 순위판 및 차트 레이아웃 구성 (2열 레이아웃)
-        col_rank1, col_rank2 = st.columns([5, 5])
+        # 순위판 및 지도 시각화 레이아웃 구성 (2열 레이아웃, 바 차트 제거)
+        col_rank1, col_rank2 = st.columns([4, 6])
         
         with col_rank1:
-            st.markdown("<h5 style='color:#E2E8F0; font-weight:600; margin-bottom: 15px;'>🏆 한국 주요 도시 검색 관심도 Top 5 (서울, 부산 제외)</h5>", unsafe_allow_html=True)
+            st.markdown("<h5 style='color:#E2E8F0; font-weight:600; margin-bottom: 15px;'>🏆 한국 주요 도시 검색 관심도 Top 5 (서울, 부산, 제주 제외)</h5>", unsafe_allow_html=True)
             
             medals = ["🥇 1위", "🥈 2위", "🥉 3위", "4위", "5위"]
             for idx, row in rank_data.iterrows():
@@ -741,38 +766,159 @@ with tab_trends:
                 score = row["검색 관심도 평균"]
                 medal = medals[idx] if idx < len(medals) else f"{idx+1}위"
                 
+                # 도시 영문명 -> 한글명 매핑
+                city_to_ko = {
+                    "Daegu": "대구", "Incheon": "인천", "Gwangju": "광주", "Daejeon": "대전", 
+                    "Ulsan": "울산", "Sejong": "세종", "Gyeonggi": "경기", "Gangwon": "강원", 
+                    "Chungbuk": "충북", "Chungnam": "충남", "Jeonbuk": "전북", "Jeonnam": "전남", 
+                    "Gyeongbuk": "경북", "Gyeongnam": "경남"
+                }
+                city_ko = city_to_ko.get(city, city)
+                
                 # 세련된 순위별 카드식 UI (다크 모드 글래스모피즘 어울림)
                 st.markdown(f"""
                     <div style='background: rgba(22, 29, 48, 0.6); padding: 12px 20px; border-radius: 10px; margin-bottom: 8px; border-left: 4px solid {"#00D2C4" if idx == 0 else "#0077FF" if idx == 1 else "#FF758F" if idx == 2 else "rgba(255,255,255,0.1)"}; display: flex; justify-content: space-between; align-items: center;'>
-                        <span style='font-weight: 700; color: #F8FAFC; font-size: 1.05rem;'>{medal} : &nbsp; {city}</span>
+                        <span style='font-weight: 700; color: #F8FAFC; font-size: 1.05rem;'>{medal} : &nbsp; {city_ko} ({city})</span>
                         <span style='color: #00D2C4; font-weight: 800; font-size: 1.1rem;'>{score:.1f} <span style='font-size: 0.8rem; color:#64748B;'>점</span></span>
                     </div>
                 """, unsafe_allow_html=True)
                 
         with col_rank2:
-            st.markdown(f"<h5 style='color:#E2E8F0; font-weight:600; text-align: center; margin-bottom: 15px;'>📊 '{selected_country_name}' 선호 분포</h5>", unsafe_allow_html=True)
+            st.markdown(f"<h5 style='color:#E2E8F0; font-weight:600; text-align: center; margin-bottom: 15px;'>🗺️ '{selected_country_name}' 선호 검색 지역 지도 시각화</h5>", unsafe_allow_html=True)
             
-            # 가로형 막대 차트로 순위 비교 (순위가 높은 것이 상단으로 오도록 ascending 정렬)
-            fig_rank_bar = px.bar(
-                rank_data.sort_values(by="검색 관심도 평균", ascending=True),
-                x="검색 관심도 평균",
-                y="도시명",
-                orientation="h",
-                color="검색 관심도 평균",
-                color_continuous_scale=["#111827", "#00D2C4"],
-                labels={"검색 관심도 평균": "관심도 점수 (0-100)", "도시명": "도시"},
-                template="plotly_dark",
-                height=250
-            )
-            fig_rank_bar.update_layout(
-                plot_bgcolor="rgba(0,0,0,0)",
-                paper_bgcolor="rgba(0,0,0,0)",
-                coloraxis_showscale=False,
-                margin=dict(l=10, r=10, t=10, b=10),
-                xaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.05)"),
-                yaxis=dict(showgrid=False)
-            )
-            st.plotly_chart(fig_rank_bar, use_container_width=True)
+            # GeoJSON 파일 로드
+            geojson = load_korea_geojson()
+            if geojson:
+                city_to_geojson_name = {
+                    "Daegu": "Daegu",
+                    "Incheon": "Incheon",
+                    "Gwangju": "Gwangju",
+                    "Daejeon": "Daejeon",
+                    "Ulsan": "Ulsan",
+                    "Sejong": "Sejongsi",
+                    "Gyeonggi": "Gyeonggi-do",
+                    "Gangwon": "Gangwon-do",
+                    "Chungbuk": "Chungcheongbuk-do",
+                    "Chungnam": "Chungcheongnam-do",
+                    "Jeonbuk": "Jeollabuk-do",
+                    "Jeonnam": "Jeollanam-do",
+                    "Gyeongbuk": "Gyeongsangbuk-do",
+                    "Gyeongnam": "Gyeongsangnam-do"
+                }
+                
+                # 도시 위경도 정보 정의 (라벨 표출용)
+                city_coords = {
+                    "Daegu": (35.8714, 128.6014),
+                    "Incheon": (37.4563, 126.7052),
+                    "Gwangju": (35.1595, 126.8526),
+                    "Daejeon": (36.3504, 127.3845),
+                    "Ulsan": (35.5389, 129.3114),
+                    "Sejong": (36.4801, 127.2890),
+                    "Gyeonggi": (37.5671, 127.1902),
+                    "Gangwon": (37.8228, 128.1555),
+                    "Chungbuk": (36.8836, 127.7012),
+                    "Chungnam": (36.5184, 126.8000),
+                    "Jeonbuk": (35.7175, 127.1530),
+                    "Jeonnam": (34.8679, 126.9910),
+                    "Gyeongbuk": (36.5760, 128.7904),
+                    "Gyeongnam": (35.4606, 128.2132)
+                }
+                
+                city_to_ko = {
+                    "Daegu": "대구", "Incheon": "인천", "Gwangju": "광주", "Daejeon": "대전", 
+                    "Ulsan": "울산", "Sejong": "세종", "Gyeonggi": "경기", "Gangwon": "강원", 
+                    "Chungbuk": "충북", "Chungnam": "충남", "Jeonbuk": "전북", "Jeonnam": "전남", 
+                    "Gyeongbuk": "경북", "Gyeongnam": "경남"
+                }
+                
+                all_geojson_names = [f['properties']['name_eng'] for f in geojson['features']]
+                geojson_to_city_key = {v: k for k, v in city_to_geojson_name.items()}
+                
+                # Top 5 맵핑 데이터 생성
+                top5_map = {}
+                for idx, row in rank_data.iterrows():
+                    city_name = row["도시명"]
+                    score = row["검색 관심도 평균"]
+                    g_name = city_to_geojson_name.get(city_name)
+                    if g_name:
+                        top5_map[g_name] = {
+                            "rank": idx + 1,
+                            "score": score,
+                            "city_ko": city_to_ko.get(city_name, city_name)
+                        }
+                
+                # 전체 지도 데이터 생성 (Top 5는 점수 반영, 나머지는 0점 처리하여 순위권만 진하게 표시)
+                features_data = []
+                for g_name in all_geojson_names:
+                    city_key = geojson_to_city_key.get(g_name)
+                    if g_name in top5_map:
+                        rank_info = top5_map[g_name]
+                        features_data.append({
+                            "geojson_name": g_name,
+                            "score": rank_info["score"],
+                            "rank": rank_info["rank"],
+                            "label": f"{rank_info['rank']}위 - {rank_info['city_ko']}"
+                        })
+                    else:
+                        features_data.append({
+                            "geojson_name": g_name,
+                            "score": 0.0,
+                            "rank": 99,
+                            "label": ""
+                        })
+                df_map = pd.DataFrame(features_data)
+                
+                # 1) Choropleth 지도로 행정구역 색상 표현
+                fig_map = px.choropleth(
+                    df_map,
+                    geojson=geojson,
+                    locations="geojson_name",
+                    featureidkey="properties.name_eng",
+                    color="score",
+                    color_continuous_scale=["rgba(17, 24, 39, 0.4)", "#00D2C4"],
+                    template="plotly_dark",
+                    projection="mercator"
+                )
+                
+                # 2) 지도 뷰포트 확대 조정
+                fig_map.update_geos(
+                    fitbounds="locations",
+                    visible=False
+                )
+                
+                # 3) 상위 5위권 도시 위경도에 마커 및 텍스트 얹기
+                top5_lat = []
+                top5_lon = []
+                top5_labels = []
+                for idx, row in rank_data.iterrows():
+                    city_name = row["도시명"]
+                    if city_name in city_coords:
+                        lat, lon = city_coords[city_name]
+                        top5_lat.append(lat)
+                        top5_lon.append(lon)
+                        top5_labels.append(f"<b>{idx+1}위 - {city_to_ko.get(city_name, city_name)}</b>")
+                        
+                fig_map.add_trace(ob.Scattergeo(
+                    lat=top5_lat,
+                    lon=top5_lon,
+                    mode="markers+text",
+                    marker=dict(size=12, color="#FF758F", symbol="circle", line=dict(color="#FFFFFF", width=1.5)),
+                    text=top5_labels,
+                    textposition="top center",
+                    textfont=dict(size=11, color="#FFFFFF", family="Outfit, Noto Sans KR"),
+                    showlegend=False
+                ))
+                
+                fig_map.update_layout(
+                    plot_bgcolor="rgba(0,0,0,0)",
+                    paper_bgcolor="rgba(0,0,0,0)",
+                    coloraxis_showscale=False,
+                    margin=dict(l=0, r=0, t=0, b=0),
+                    height=450
+                )
+                st.plotly_chart(fig_map, use_container_width=True)
+            else:
+                st.warning("⚠️ 지도 데이터를 로드할 수 없어 시각화를 표시할 수 없습니다.")
             
         st.markdown("<br/>", unsafe_allow_html=True)
         if is_mock:
