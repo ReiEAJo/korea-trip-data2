@@ -5,3 +5,7 @@ plotly
 pytrends
 lxml
 textblob
+pytumblr
+selenium
+webdriver-manager
+undetected-chromedriver
