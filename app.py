@@ -150,10 +150,10 @@ st.markdown("""
 # API 키 및 엔드포인트 정의
 KTO_KEY = "ffec4f8bc5da62df9374e291220ab4516b9502ccdda44a6d8838eb166a4030dd"
 
-# 로컬 CSV 파일 정의
-DATA_DIR = r"C:\Users\user\Downloads\ICB\korea trip data\★korea-trip-data\data"
-file_visit = os.path.join(DATA_DIR, "20260704153235_전국_202506-202605_데이터랩_다운로드_정제_합본.csv")
-file_spend = os.path.join(DATA_DIR, "20260704154135_전국_202506-202605_데이터랩_다운로드_정제_합본.csv")
+# 실행 환경 호환성을 위해 파일 절대경로 대신 상대경로(BASE_DIR)로 정의
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+file_visit = os.path.join(BASE_DIR, "★korea-trip-data", "data", "20260704153235_전국_202506-202605_데이터랩_다운로드_정제_합본.csv")
+file_spend = os.path.join(BASE_DIR, "★korea-trip-data", "data", "20260704154135_전국_202506-202605_데이터랩_다운로드_정제_합본.csv")
 
 # 17개 시도 매핑 정보
 AREA_CODES = {
