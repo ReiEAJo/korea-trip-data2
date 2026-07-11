@@ -9,3 +9,4 @@ pytumblr
 selenium
 webdriver-manager
 undetected-chromedriver
+folium
