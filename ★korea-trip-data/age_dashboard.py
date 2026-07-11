@@ -213,14 +213,31 @@ section[data-testid="stSidebar"] {
 }
 
 .insight-summary-card {
-    background: #EFF6FF !important;
-    border: 1px solid #BFDBFE !important;
-    border-left: 5px solid #1D4ED8 !important;
     border-radius: 12px !important;
     padding: 18px 22px !important;
     margin-top: 25px !important;
     margin-bottom: 15px !important;
-    box-shadow: 0 4px 6px -1px rgba(30,58,138,0.02) !important;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02) !important;
+}
+.insight-interest {
+    background-color: #EFF6FF !important;
+    border: 1px solid #BFDBFE !important;
+    border-left: 5px solid #1D4ED8 !important;
+}
+.insight-visit {
+    background-color: #ECFDF5 !important;
+    border: 1px solid #A7F3D0 !important;
+    border-left: 5px solid #059669 !important;
+}
+.insight-vs {
+    background-color: #F5F3FF !important;
+    border: 1px solid #DDD6FE !important;
+    border-left: 5px solid #8B5CF6 !important;
+}
+.insight-map {
+    background-color: #FEF9C3 !important;
+    border: 1px solid #FEF08A !important;
+    border-left: 5px solid #EAB308 !important;
 }
 
 /* --- Google Chrome Tabs Navigation Styling --- */
@@ -1006,7 +1023,7 @@ if active_page == "interest":
         st.dataframe(df_tbl, use_container_width=True, hide_index=True)
 
         st.markdown("""
-        <div class="insight-summary-card">
+        <div class="insight-summary-card insight-interest">
             <h4 style="margin:0 0 10px 0; color:#1D4ED8; font-weight:700;">💡 주요 분석 인사이트 (관심도)</h4>
             <p style="margin:0; font-size:0.9rem; color:#475569; line-height:1.6; text-align:justify;">
                 <strong>청년층 (10대~40대)</strong>은 대도시 인접 지역이자 액티비티/리조트 자원이 풍부한 <strong>강원특별자치도(69.0)</strong>와 <strong>경기도(68.3)</strong>에 매우 높은 관심을 보이고 있습니다. 이는 젊은 외래 관광객이 동적인 체험형 관광을 선호함을 의미합니다.<br>
@@ -1255,7 +1272,7 @@ elif active_page == "visit":
             st.plotly_chart(fig_bar, use_container_width=True)
 
         st.markdown("""
-        <div class="insight-summary-card" style="border-left-color: #059669; background-color: #ECFDF5; border-color: #A7F3D0;">
+        <div class="insight-summary-card insight-visit">
             <h4 style="margin:0 0 10px 0; color:#059669; font-weight:700;">💡 주요 분석 인사이트 (방문도)</h4>
             <p style="margin:0; font-size:0.9rem; color:#475569; line-height:1.6; text-align:justify;">
                 실제 방문 현황인 방문도지수를 분석한 결과, <strong>청년층</strong>과 <strong>중장년층</strong> 모두에서 <strong>경기도</strong>와 <strong>인천광역시</strong>가 압도적인 1위와 2위를 기록했습니다.<br>
@@ -1538,7 +1555,7 @@ elif active_page == "vs":
             st.plotly_chart(fig_gap_d, use_container_width=True)
 
         st.markdown("""
-        <div class="insight-summary-card" style="border-left-color: #8B5CF6; background-color: #F5F3FF; border-color: #DDD6FE;">
+        <div class="insight-summary-card insight-vs">
             <h4 style="margin:0 0 10px 0; color:#8B5CF6; font-weight:700;">💡 주요 분석 인사이트 (관심도 vs 방문도)</h4>
             <p style="margin:0; font-size:0.9rem; color:#475569; line-height:1.6; text-align:justify;">
                 관심도와 방문도의 상관관계를 시각화한 분석 결과, 큰 격차(Gap)가 나타나는 지역들이 관찰됩니다.<br>
@@ -1828,7 +1845,7 @@ elif active_page == "map":
         st.dataframe(df_map[['signguNm', 'visitorCnt', 'mainItem']], use_container_width=True, hide_index=True)
 
         st.markdown("""
-        <div class="insight-summary-card" style="border-left-color: #EAB308; background-color: #FEF9C3; border-color: #FEF08A;">
+        <div class="insight-summary-card insight-map">
             <h4 style="margin:0 0 10px 0; color:#CA8A04; font-weight:700;">💡 주요 분석 인사이트 (방문 트렌드 지도)</h4>
             <p style="margin:0; font-size:0.9rem; color:#475569; line-height:1.6; text-align:justify;">
                 연령대별 방문 분포 지도를 지리적 데이터(Choropleth Heatmap)로 투영한 결과, <strong>외래객 공간 분포의 수도권 편중 및 로컬 분화</strong> 패턴이 선명하게 나타납니다.<br>
