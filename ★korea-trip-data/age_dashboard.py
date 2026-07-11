@@ -1130,9 +1130,10 @@ elif active_page == "visit":
         rows_y_vis = []
         rows_o_vis = []
         for reg in REGIONS:
-            base_vis = visit_map.get(reg, 0.0)
-            vis_y = base_vis * sum(AGE_VISIT_RATIO[reg][0:4])
-            vis_o = base_vis * sum(AGE_VISIT_RATIO[reg][4:7])
+            base_y = YOUNG_VISIT_BASE.get(reg, 0.0)
+            base_o = OLD_VISIT_BASE.get(reg, 0.0)
+            vis_y = base_y * sum(AGE_VISIT_RATIO[reg][0:4])
+            vis_o = base_o * sum(AGE_VISIT_RATIO[reg][4:7])
             rows_y_vis.append({"region": reg, "score": round(vis_y, 1)})
             rows_o_vis.append({"region": reg, "score": round(vis_o, 1)})
 
@@ -1367,25 +1368,25 @@ elif active_page == "vs":
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.markdown(f"""<div class="kpi-card">
-        <div class="kpi-label">청년층 방문 전환 최강 지역</div>
+        <div class="kpi-label">청년층 저관심 &gt; 고방문</div>
         <div class="kpi-value" style="font-size:1.3rem;">{best_y}</div>
         <div class="kpi-delta-up">🎯 청년층 관심→방문 최고효율</div>
         </div>""", unsafe_allow_html=True)
     with k2:
         st.markdown(f"""<div class="kpi-card">
-        <div class="kpi-label">중장년층 방문 전환 최강 지역</div>
+        <div class="kpi-label">중장년층 저관심 &gt; 고방문</div>
         <div class="kpi-value" style="font-size:1.3rem;">{best_o}</div>
         <div class="kpi-delta-up" style="color:#059669;">🎯 중장년층 관심→방문 최고효율</div>
         </div>""", unsafe_allow_html=True)
     with k3:
         st.markdown(f"""<div class="kpi-card">
-        <div class="kpi-label">청년층 관심위주 방문 미비 지역</div>
+        <div class="kpi-label">청년층 고관심 &gt; 저방문</div>
         <div class="kpi-value" style="font-size:1.3rem;">{gap_y}</div>
         <div class="kpi-delta-down">⚠️ 청년층 잠재 미전환 지역</div>
         </div>""", unsafe_allow_html=True)
     with k4:
         st.markdown(f"""<div class="kpi-card">
-        <div class="kpi-label">중장년층 관심위주 방문 미비 지역</div>
+        <div class="kpi-label">중장년층 고관심 &gt; 저방문</div>
         <div class="kpi-value" style="font-size:1.3rem;">{gap_o}</div>
         <div class="kpi-delta-down">⚠️ 중장년층 잠재 미전환 지역</div>
         </div>""", unsafe_allow_html=True)
@@ -1658,9 +1659,10 @@ elif active_page == "map":
             rows_y = []
             rows_o = []
             for reg in REGIONS:
-                base_vis = visit_map.get(reg, 0.0)
-                vis_y = base_vis * sum(AGE_VISIT_RATIO[reg][0:4])
-                vis_o = base_vis * sum(AGE_VISIT_RATIO[reg][4:7])
+                base_y = YOUNG_VISIT_BASE.get(reg, 0.0)
+                base_o = OLD_VISIT_BASE.get(reg, 0.0)
+                vis_y = base_y * sum(AGE_VISIT_RATIO[reg][0:4])
+                vis_o = base_o * sum(AGE_VISIT_RATIO[reg][4:7])
                 rows_y.append({"region": reg, "score": round(vis_y, 1)})
                 rows_o.append({"region": reg, "score": round(vis_o, 1)})
 
