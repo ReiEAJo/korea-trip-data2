@@ -1379,6 +1379,119 @@ elif active_page == "vs":
     gap_y  = df_y_m.loc[df_y_m["Gap"].idxmax(), "지역"]
     gap_o  = df_o_m.loc[df_o_m["Gap"].idxmax(), "지역"]
 
+    # 청년층 및 중장년층 관심도 Top 3 / 방문도 Top 3 산출 (원본 지수 기준)
+    rows_y_i, rows_o_i = [], []
+    rows_y_v, rows_o_v = [], []
+    for reg in REGIONS:
+        base_i = interest_map.get(reg, 0.0)
+        int_y = base_i * sum(AGE_INTEREST_RATIO[reg][0:4])
+        int_o = base_i * sum(AGE_INTEREST_RATIO[reg][4:7])
+        rows_y_i.append({"region": reg, "score": round(int_y, 1)})
+        rows_o_i.append({"region": reg, "score": round(int_o, 1)})
+
+        base_y_v = YOUNG_VISIT_BASE.get(reg, 0.0)
+        base_o_v = OLD_VISIT_BASE.get(reg, 0.0)
+        vis_y = base_y_v * sum(AGE_VISIT_RATIO[reg][0:4])
+        vis_o = base_o_v * sum(AGE_VISIT_RATIO[reg][4:7])
+        rows_y_v.append({"region": reg, "score": round(vis_y, 1)})
+        rows_o_v.append({"region": reg, "score": round(vis_o, 1)})
+
+    top3_y_int = pd.DataFrame(rows_y_i).sort_values("score", ascending=False).reset_index(drop=True)
+    top3_o_int = pd.DataFrame(rows_o_i).sort_values("score", ascending=False).reset_index(drop=True)
+    top3_y_vis = pd.DataFrame(rows_y_v).sort_values("score", ascending=False).reset_index(drop=True)
+    top3_o_vis = pd.DataFrame(rows_o_v).sort_values("score", ascending=False).reset_index(drop=True)
+
+    st.markdown("### 🏆 연령대별 관심도 vs 방문도 Top 3 종합 비교")
+    col_top_y, col_top_o = st.columns(2)
+    with col_top_y:
+        st.markdown(f"""
+        <div class="rank-column-card" style="border-top:4px solid #3B82F6; background:#F8FAFC; padding:16px; border-radius:12px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <h4 style="margin:0 0 14px 0; color:#1D4ED8; font-weight:700; border-bottom:2px solid #DBEAFE; padding-bottom:8px; font-size:1.1rem; display:flex; align-items:center; justify-content:space-between;">
+                <span>🔵 청년층 (10대~40대)</span>
+                <span style="font-size:0.8rem; background:#EFF6FF; color:#2563EB; padding:3px 8px; border-radius:12px; font-weight:600;">Top 3 비교</span>
+            </h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="background:#FFFFFF; padding:12px; border-radius:8px; border:1px solid #E2E8F0;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#64748B; margin-bottom:8px; text-align:center;">🔥 관심도 Top 3</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥇</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_y_int.loc[0, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_int.loc[0, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥈</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_y_int.loc[1, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_int.loc[1, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.1rem;">🥉</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_y_int.loc[2, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_int.loc[2, 'score']:.1f})</span></div>
+                    </div>
+                </div>
+                <div style="background:#FFFFFF; padding:12px; border-radius:8px; border:1px solid #E2E8F0;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#2563EB; margin-bottom:8px; text-align:center;">✈️ 방문도 Top 3</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥇</span>
+                        <div><strong style="color:#1D4ED8; font-size:0.95rem;">{top3_y_vis.loc[0, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_vis.loc[0, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥈</span>
+                        <div><strong style="color:#1D4ED8; font-size:0.95rem;">{top3_y_vis.loc[1, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_vis.loc[1, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.1rem;">🥉</span>
+                        <div><strong style="color:#1D4ED8; font-size:0.95rem;">{top3_y_vis.loc[2, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_y_vis.loc[2, 'score']:.1f})</span></div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:10px; padding:8px 12px; background:#EFF6FF; border-radius:6px; font-size:0.82rem; color:#1E3A8A; line-height:1.4;">
+                💡 <strong>분석</strong>: 강원·경기·인천 3개 지역이 관심도와 방문도 모두 상위권을 차지하나, 실제 방문 시에는 수도권 교통 접근성이 뛰어난 <strong>경기·인천이 1·2위로 상승</strong>하는 교차 특징을 보입니다.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_top_o:
+        st.markdown(f"""
+        <div class="rank-column-card" style="border-top:4px solid #059669; background:#F8FAFC; padding:16px; border-radius:12px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+            <h4 style="margin:0 0 14px 0; color:#059669; font-weight:700; border-bottom:2px solid #D1FAE5; padding-bottom:8px; font-size:1.1rem; display:flex; align-items:center; justify-content:space-between;">
+                <span>🟢 중장년층 (50대~90대)</span>
+                <span style="font-size:0.8rem; background:#ECFDF5; color:#059669; padding:3px 8px; border-radius:12px; font-weight:600;">Top 3 비교</span>
+            </h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div style="background:#FFFFFF; padding:12px; border-radius:8px; border:1px solid #E2E8F0;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#64748B; margin-bottom:8px; text-align:center;">🔥 관심도 Top 3</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥇</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_o_int.loc[0, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_int.loc[0, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥈</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_o_int.loc[1, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_int.loc[1, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.1rem;">🥉</span>
+                        <div><strong style="color:#1E293B; font-size:0.95rem;">{top3_o_int.loc[2, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_int.loc[2, 'score']:.1f})</span></div>
+                    </div>
+                </div>
+                <div style="background:#FFFFFF; padding:12px; border-radius:8px; border:1px solid #E2E8F0;">
+                    <div style="font-size:0.85rem; font-weight:700; color:#059669; margin-bottom:8px; text-align:center;">✈️ 방문도 Top 3</div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥇</span>
+                        <div><strong style="color:#059669; font-size:0.95rem;">{top3_o_vis.loc[0, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_vis.loc[0, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+                        <span style="font-size:1.1rem;">🥈</span>
+                        <div><strong style="color:#059669; font-size:0.95rem;">{top3_o_vis.loc[1, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_vis.loc[1, 'score']:.1f})</span></div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:1.1rem;">🥉</span>
+                        <div><strong style="color:#059669; font-size:0.95rem;">{top3_o_vis.loc[2, 'region']}</strong> <span style="font-size:0.75rem; color:#64748B;">({top3_o_vis.loc[2, 'score']:.1f})</span></div>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:10px; padding:8px 12px; background:#ECFDF5; border-radius:6px; font-size:0.82rem; color:#065F46; line-height:1.4;">
+                💡 <strong>분석</strong>: 온라인 관심도는 강원·경북 등 자연명소가 상위권이지만, <strong>실제 방문 1위는 전주 한옥마을의 전북</strong>, 3위는 미식/힐링의 <strong>전남</strong>으로 실질 체류 선호도가 크게 다릅니다.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
     k1, k2, k3, k4 = st.columns(4)
     with k1:
         st.markdown(f"""<div class="kpi-card">
