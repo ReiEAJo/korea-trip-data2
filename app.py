@@ -720,10 +720,8 @@ def build_age_dataframes():
         vr = AGE_VISIT_RATIO[region]
         for i, age in enumerate(AGE_LABELS):
             grp = GRP_YOUNG_LABEL if i < 4 else GRP_OLD_LABEL
-            # ★ 핵심 개선: 청년/중장년 각각의 실제 기반 점수 사용
-            base_y = YOUNG_VISIT_BASE.get(region, 0.0)
-            base_o = OLD_VISIT_BASE.get(region, 0.0)
-            base_vis_grp = base_y if i < 4 else base_o
+            # ★ 핵심: 모든 API 및 크롤링 데이터의 기준을 통일한 중앙값(visit_map / interest_map)으로 모든 결과 산출
+            base_vis = visit_map.get(region, 0.0)
             rows_int.append({
                 "지역": region, "연령대": age,
                 "관심도지수": round(base_int * ir[i], 2),
@@ -731,7 +729,7 @@ def build_age_dataframes():
             })
             rows_vis.append({
                 "지역": region, "연령대": age,
-                "방문도지수": round(base_vis_grp * vr[i], 2),
+                "방문도지수": round(base_vis * vr[i], 2),
                 "연령그룹": grp
             })
 
@@ -1133,14 +1131,13 @@ elif active_page == "visit":
     tab1, tab2, tab3 = st.tabs(["📊 지역별 연령대 비교", "🌡️ 히트맵 분석", "📈 지역 상세 분석"])
 
     with tab1:
-        # 연령대별 상위권 방문도 순위 분할
+        # 연령대별 상위권 방문도 순위 분할 (통합 중앙값 visit_map 기준)
         rows_y_vis = []
         rows_o_vis = []
         for reg in REGIONS:
-            base_y = YOUNG_VISIT_BASE.get(reg, 0.0)
-            base_o = OLD_VISIT_BASE.get(reg, 0.0)
-            vis_y = base_y * sum(AGE_VISIT_RATIO[reg][0:4])
-            vis_o = base_o * sum(AGE_VISIT_RATIO[reg][4:7])
+            base_v = visit_map.get(reg, 0.0)
+            vis_y = base_v * sum(AGE_VISIT_RATIO[reg][0:4])
+            vis_o = base_v * sum(AGE_VISIT_RATIO[reg][4:7])
             rows_y_vis.append({"region": reg, "score": round(vis_y, 1)})
             rows_o_vis.append({"region": reg, "score": round(vis_o, 1)})
 
@@ -1288,7 +1285,13 @@ elif active_page == "visit":
         st.markdown("#### 📈 지역 선택 — 연령대별 방문도 상세 분석")
         sel_region_vis = st.selectbox("지역 선택", REGIONS, key="vis_detail")
 
-        df_sel_vis = df_visit[df_visit["지역"] == sel_region_vis]
+        base_v = visit_map.get(sel_region_vis, 0.0)
+        rows_sel = []
+        for i, age_label in enumerate(AGE_LABELS):
+            grp = GRP_YOUNG_LABEL if i < 4 else GRP_OLD_LABEL
+            rows_sel.append({"지역": sel_region_vis, "연령대": age_label, "연령그룹": grp, "방문도지수": base_v * AGE_VISIT_RATIO[sel_region_vis][i]})
+        df_sel_vis = pd.DataFrame(rows_sel)
+        
         grp_sum = df_sel_vis.groupby("연령그룹")["방문도지수"].sum()
         total_v = grp_sum.sum()
         young_v = grp_sum.get(GRP_YOUNG_LABEL, 0)
@@ -1329,21 +1332,17 @@ elif active_page == "visit":
 
         st.markdown("""<div style="background-color:#F0FDF4; border-left:4px solid #10B981; padding:12px 16px; border-radius:6px; margin-top:16px;"><span style="font-weight:700; color:#059669;">📌 [지역 상세 분석 인사이트]</span> 특정 시도 권역 내 세부 연령대(10대~90대) 방문 구성비와 지수를 통해 해당 지역에 최적화된 연령 맞춤형 인프라 및 패키지 개발 전략을 수립할 수 있습니다.</div>""", unsafe_allow_html=True)
 
-    # 페이지 하단 종합 분석 인사이트 (탭 외부에 배치하여 항상 노출)
-    st.markdown("""
+    st.markdown(f"""
     <div class="insight-summary-card insight-visit" style="margin-top:28px;">
         <h4 style="margin:0 0 10px 0; color:#059669; font-weight:700;">💡 주요 분석 인사이트 — 외국인 한국 지역별 방문도</h4>
         <p style="margin:0; font-size:0.95rem; color:#334155; line-height:1.65; text-align:justify;">
-            <strong>청년층 (10대~40대)</strong>은 에버랜드·DMZ·스키 리조트 등 액티비티 자원이 풍부한 <strong>경기도(59.0점)</strong>와 공항 관문 및 트렌디한 팝업 문화의 <strong>인천광역시(49.6점)</strong>, 서핑·레저 중심의 <strong>강원특별자치도(46.6점)</strong>를 최다 방문지로 꼽았습니다.<br>
-            반면, <strong>중장년층 (50대~90대)</strong>은 전주 한옥마을 및 미식 자원의 <strong>전북특별자치도(14.0점)</strong>와 경주·안동 역사 유산의 <strong>경상북도(13.2점)</strong>, 남도 미식 거점인 <strong>전라남도(11.3점)</strong>에서 가장 높은 방문도를 보였습니다. 이는 <strong>'액티비티(청년)' vs '역사·미식(중장년)'이라는 연령대별 실제 관광지 선택 기준의 극명한 차이</strong>를 명확히 보여줍니다.
+            <strong>청년층 (10대~40대)</strong>은 액티비티 자원이 풍부한 <strong>{df_y_vis.loc[0, 'region']}({df_y_vis.loc[0, 'score']:.1f}점)</strong>와 주요 관문인 <strong>{df_y_vis.loc[1, 'region']}({df_y_vis.loc[1, 'score']:.1f}점)</strong>, <strong>{df_y_vis.loc[2, 'region']}({df_y_vis.loc[2, 'score']:.1f}점)</strong>를 최다 방문지로 꼽았습니다.<br>
+            반면, <strong>중장년층 (50대~90대)</strong>은 힐링 체류 인프라가 안정된 <strong>{df_o_vis.loc[0, 'region']}({df_o_vis.loc[0, 'score']:.1f}점)</strong>와 <strong>{df_o_vis.loc[1, 'region']}({df_o_vis.loc[1, 'score']:.1f}점)</strong>, <strong>{df_o_vis.loc[2, 'region']}({df_o_vis.loc[2, 'score']:.1f}점)</strong>에서 높은 실제 방문도를 보였습니다. 이는 전 연령층에서 수도권과 주요 거점이 실제 체류량의 중심임을 보여주며, 지방 권역은 온라인 관심도 대비 실제 방문 전환을 이끌 체류 인프라 보완이 필요함을 시사합니다.
         </p>
     </div>
     """, unsafe_allow_html=True)
 
 
-# ═══════════════════════════════════════════════════════════
-# 메뉴 3: 외국인 관심도 vs 방문도
-# ═══════════════════════════════════════════════════════════
 elif active_page == "vs":
 
     st.markdown('<div class="section-title">⚖️ 외국인 관심도 vs 방문도 — 청년층 vs 중장년층 종합 비교</div>', unsafe_allow_html=True)
@@ -1371,20 +1370,10 @@ elif active_page == "vs":
     df_merged["전환효율"] = (df_merged["방문도지수"] / df_merged["관심도지수"]).round(3)
     df_merged["Gap"]      = (df_merged["관심도지수"] - df_merged["방문도지수"]).round(1)
 
-    for grp in [GRP_YOUNG_LABEL, GRP_OLD_LABEL]:
-        mask = df_merged["연령그룹"] == grp
-        max_i = df_merged.loc[mask, "관심도지수"].max()
-        max_v = df_merged.loc[mask, "방문도지수"].max()
-        df_merged.loc[mask, "관심도지수"] = (df_merged.loc[mask, "관심도지수"] / max_i * 100).round(1)
-        df_merged.loc[mask, "방문도지수"] = (df_merged.loc[mask, "방문도지수"]           / max_v * 100).round(1)
-
-    df_merged["전환효율"] = (df_merged["방문도지수"] / df_merged["관심도지수"]).round(3)
-    df_merged["Gap"]      = (df_merged["관심도지수"] - df_merged["방문도지수"]).round(1)
-
     df_y_m = df_merged[df_merged["연령그룹"] == GRP_YOUNG_LABEL]
     df_o_m = df_merged[df_merged["연령그룹"] == GRP_OLD_LABEL]
 
-    # 청년층 및 중장년층 관심도 Top 3 / 방문도 Top 3 산출 (원본 지수 기준)
+    # 청년층 및 중장년층 관심도 Top 3 / 방문도 Top 3 산출 (원본 통합 중앙값 지수 기준)
     rows_y_i, rows_o_i = [], []
     rows_y_v, rows_o_v = [], []
     for reg in REGIONS:
@@ -1394,10 +1383,9 @@ elif active_page == "vs":
         rows_y_i.append({"region": reg, "score": round(int_y, 1)})
         rows_o_i.append({"region": reg, "score": round(int_o, 1)})
 
-        base_y_v = YOUNG_VISIT_BASE.get(reg, 0.0)
-        base_o_v = OLD_VISIT_BASE.get(reg, 0.0)
-        vis_y = base_y_v * sum(AGE_VISIT_RATIO[reg][0:4])
-        vis_o = base_o_v * sum(AGE_VISIT_RATIO[reg][4:7])
+        base_v = visit_map.get(reg, 0.0)
+        vis_y = base_v * sum(AGE_VISIT_RATIO[reg][0:4])
+        vis_o = base_v * sum(AGE_VISIT_RATIO[reg][4:7])
         rows_y_v.append({"region": reg, "score": round(vis_y, 1)})
         rows_o_v.append({"region": reg, "score": round(vis_o, 1)})
 
@@ -1794,14 +1782,13 @@ elif active_page == "map":
                     filtered_features.append(feature)
             geojson_data["features"] = filtered_features
             
-            # Prepare data
+            # Prepare data (통합 중앙값 visit_map 기준)
             rows_y = []
             rows_o = []
             for reg in REGIONS:
-                base_y = YOUNG_VISIT_BASE.get(reg, 0.0)
-                base_o = OLD_VISIT_BASE.get(reg, 0.0)
-                vis_y = base_y * sum(AGE_VISIT_RATIO[reg][0:4])
-                vis_o = base_o * sum(AGE_VISIT_RATIO[reg][4:7])
+                base_v = visit_map.get(reg, 0.0)
+                vis_y = base_v * sum(AGE_VISIT_RATIO[reg][0:4])
+                vis_o = base_v * sum(AGE_VISIT_RATIO[reg][4:7])
                 rows_y.append({"region": reg, "score": round(vis_y, 1)})
                 rows_o.append({"region": reg, "score": round(vis_o, 1)})
 
