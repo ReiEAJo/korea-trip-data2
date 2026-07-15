@@ -5,3 +5,5 @@ numpy
 folium
 requests
 apify-client
+matplotlib
+wordcloud
