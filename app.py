@@ -1417,6 +1417,7 @@ def get_sigun_visit(province, age_group="전체"):
     df_sigun_int = get_sigun_interest(province, age_group)
     if df_sigun_int.empty:
         return pd.DataFrame()
+    df_sigun_int = df_sigun_int.copy() # Avoid SettingWithCopyError
     max_reviews = df_sigun_int["review_count"].max() or 1.0
     df_sigun_int["visit_score"] = (df_sigun_int["review_count"] / max_reviews) * 100.0
     df_sigun_int["visit_score"] = df_sigun_int["visit_score"].round(1)
@@ -2555,7 +2556,7 @@ elif active_page == "vs":
             yaxis_title="지수 (100점 만점)",
             margin=dict(l=10, r=10, t=50, b=40)
         )
-        st.plotly_chart(fig_y_bar, use_container_width=True)
+        chart_event_y = st.plotly_chart(fig_y_bar, use_container_width=True, on_select="rerun")
         
     with col_graph_o:
         df_o_sorted = df_o_unified.sort_values(by="int_score", ascending=False)
@@ -2580,7 +2581,23 @@ elif active_page == "vs":
             yaxis_title="지수 (100점 만점)",
             margin=dict(l=10, r=10, t=50, b=40)
         )
-        st.plotly_chart(fig_o_bar, use_container_width=True)
+        chart_event_o = st.plotly_chart(fig_o_bar, use_container_width=True, on_select="rerun")
+
+    # Handle clicks to sync cmp_region
+    clicked_region = None
+    if chart_event_y and chart_event_y.get("selection", {}).get("points"):
+        pt = chart_event_y["selection"]["points"][0]
+        if "x" in pt and pt["x"] in REGIONS:
+            clicked_region = pt["x"]
+    elif chart_event_o and chart_event_o.get("selection", {}).get("points"):
+        pt = chart_event_o["selection"]["points"][0]
+        if "x" in pt and pt["x"] in REGIONS:
+            clicked_region = pt["x"]
+            
+    if clicked_region:
+        if st.session_state.get("cmp_region") != clicked_region:
+            st.session_state["cmp_region"] = clicked_region
+            st.rerun()
 
     st.markdown("---")
 
@@ -2797,6 +2814,73 @@ elif active_page == "vs":
             st.plotly_chart(fig_gap_d, use_container_width=True)
 
         st.markdown("""<div style="background-color:#FAF5FF; border-left:4px solid #A855F7; padding:12px 16px; border-radius:6px; margin-top:16px;"><span style="font-weight:700; color:#8B5CF6;">📌 [지역 심층 비교 인사이트]</span> 10대부터 90대까지 선택 지역 내 세부 연령별 관심-방문 지수 불일치 원인을 분석하여, 취약 연령층 맞춤형 연계 관광 콘텐츠를 발굴할 수 있습니다.</div>""", unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.markdown(f"#### 🏙️ {sel_cmp} 내 세부 시/군/구별 관심도 vs 방문도 격차 분석")
+        
+        # Select age group for city comparison
+        sel_age_cmp = st.selectbox("시/군/구 분석 연령층 선택", ["전체", "청년층", "중장년층"], key="cmp_age_detail")
+        
+        df_sigun_i = get_sigun_interest(sel_cmp, sel_age_cmp)
+        df_sigun_v = get_sigun_visit(sel_cmp, sel_age_cmp)
+        
+        if not df_sigun_i.empty and not df_sigun_v.empty:
+            # Merge on city
+            df_sigun_cmp = pd.merge(
+                df_sigun_i[["city", "interest_score"]],
+                df_sigun_v[["city", "visit_score"]],
+                on="city"
+            )
+            df_sigun_cmp["gap"] = (df_sigun_cmp["interest_score"] - df_sigun_cmp["visit_score"]).round(1)
+            df_sigun_cmp = df_sigun_cmp.sort_values(by="interest_score", ascending=False)
+            
+            # Grouped bar chart comparing interest vs visit
+            df_melt_sigun = df_sigun_cmp.melt(
+                id_vars=["city", "gap"],
+                value_vars=["interest_score", "visit_score"],
+                var_name="구분",
+                value_name="지수"
+            )
+            df_melt_sigun["구분"] = df_melt_sigun["구분"].map({"interest_score": "관심도", "visit_score": "방문도"})
+            
+            fig_sigun_cmp = px.bar(
+                df_melt_sigun,
+                x="city",
+                y="지수",
+                color="구분",
+                barmode="group",
+                color_discrete_map={"관심도": "#3B82F6", "방문도": "#10B981"},
+                title=f"📊 {sel_cmp} 시/군/구별 {sel_age_cmp} 관심도 vs 방문도 지수 비교",
+                labels={"지수": "지수 (100점 만점)", "city": "시/군/구", "구분": "지표", "gap": "격차"},
+                hover_data={"gap": True, "지수": ":.1f"}
+            )
+            fig_sigun_cmp.update_layout(
+                **LAYOUT_BASE,
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+                xaxis_title="시/군/구",
+                yaxis_title="지수 (100점 만점)",
+                margin=dict(l=20, r=20, t=50, b=50)
+            )
+            st.plotly_chart(fig_sigun_cmp, use_container_width=True)
+            
+            # Table of comparison
+            st.markdown(f"##### 🔢 {sel_cmp} 시/군/구별 세부 격차 데이터")
+            df_tbl_comp = df_sigun_cmp.copy()
+            df_tbl_comp.columns = ["시/군/구", "관심도 지수", "방문도 지수", "격차 (관심-방문)"]
+            st.dataframe(df_tbl_comp, use_container_width=True, hide_index=True)
+            
+            # Insight card
+            y_gap_city = df_sigun_cmp.sort_values(by="gap", ascending=False).iloc[0]
+            v_high_city = df_sigun_cmp.sort_values(by="visit_score", ascending=False).iloc[0]
+            st.markdown(f"""
+            <div style="background-color:#F8FAFC; border-left:4px solid #8B5CF6; padding:16px 20px; border-radius:8px; margin-top:16px; box-shadow:0 4px 12px rgba(139,92,246,0.06);">
+                <span style="font-weight:700; color:#7C3AED;">📌 [시/군/구 격차 분석 인사이트]</span> 
+                <strong>{sel_cmp}</strong> 내에서 <strong>{y_gap_city['city']}</strong>(격차: {y_gap_city['gap']:+.1f})는 온라인 상의 높은 외국인 관심도 대비 실제 체류/방문 전환이 가장 취약합니다. 
+                반면 <strong>{v_high_city['city']}</strong>(방문지수: {v_high_city['visit_score']:.1f})는 실질적인 외국인 방문이 집중되는 주요 거점 도시입니다.
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("⚠️ 해당 지역의 세부 시/군/구 데이터를 불러올 수 없습니다.")
 
     # 페이지 하단 종합 분석 인사이트 (탭 외부에 배치하여 항상 노출)
     st.markdown("""
